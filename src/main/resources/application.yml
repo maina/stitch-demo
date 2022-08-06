@@ -1,0 +1,39 @@
+stitch:
+  grant_type: client_credentials
+  client-id: test-0bc5a12d-de6c-4b2f-b4c1-f0bab8246016
+  client_assertion_type: urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+  audience: https://secure.stitch.money/connect/token
+  scope: client_paymentrequest
+  base-url: https://secure.stitch.money/connect/token
+  user-token:
+   auth-base-url: https://secure.stitch.money/connect/token
+   scope: openid offline_access accounts transactions balances accountholders
+   response_type: code
+   redirect_uri: https://local.stitchmoney.com/ide/add-user
+   code_challenge_method: S256
+   
+server:
+  port: 9090
+  
+logging:
+  level:
+    org:
+      apache:
+        http: DEBUG
+      springframework:
+        security: DEBUG    	
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          stitch:
+            client-id: test-0bc5a12d-de6c-4b2f-b4c1-f0bab8246016
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: "https://8eb7-41-80-112-46.in.ngrok.io/user-tokens"
+            scope: openid, accounts, balances, offline_access
+        provider:
+          stitch:
+            authorization-uri: https://secure.stitch.money/connect/authorize
+            token-uri: https://secure.stitch.money/connect/token    
