@@ -15,18 +15,25 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import lombok.RequiredArgsConstructor;
+
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class WebSecurityConfig {
+	 private final CustomAuthorizationRequestResolver customAuthorizationRequestResolver;
+
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http.cors().and().csrf().disable().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-				.and().authorizeRequests().antMatchers("/user-tokens").permitAll().anyRequest()
+				.and().authorizeRequests().antMatchers("/user-tokens","/h2-console/**").permitAll().anyRequest()
 				.authenticated();
-		http.oauth2Client();
-		http.oauth2Login();
-
+		http.headers().frameOptions().disable();
+//		http.oauth2Client();
+		http.oauth2Login().authorizationEndpoint()
+        // CUSTOM AUTHORIZATION REQUEST RESOLVER
+        .authorizationRequestResolver(customAuthorizationRequestResolver);
 		return http.build();
 	}
 

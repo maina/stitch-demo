@@ -22,15 +22,22 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.nimbusds.oauth2.sdk.TokenResponse;
 import com.stitch.payments.demo.dto.ClientToken;
+import com.stitch.payments.demo.repository.StitchAuthorizationRequestDao;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
 	@Value("${stitch.grant_type}")
 	private String grantType;
+
+	@Value("${stitch.token-grant-type}")
+	private String tokenGrantType;
+
 	@Value("${stitch.client-id:test-0bc5a12d-de6c-4b2f-b4c1-f0bab8246016}")
 	private String clientId;
 	@Value("${stitch.client_assertion_type}")
@@ -42,7 +49,13 @@ public class AuthServiceImpl implements AuthService {
 	@Value("${stitch.base-url}")
 	private String baseUrl;
 
+	@Value("${spring.security.oauth2.client.registration.stitch.redirect-uri}")
+	private String redirectUri;
+	@Value("${spring.security.oauth2.client.provider.stitch.token-uri}")
+	private String tokenUri;
+
 	private final RestTemplate restTemplate;
+	private final StitchAuthorizationRequestDao stitchAuthorizationRequestDao;
 
 	@Override
 	public String generatePrivateKeyJwt() throws IOException {
@@ -70,7 +83,7 @@ public class AuthServiceImpl implements AuthService {
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-		MultiValueMap<String, String> map = new  LinkedMultiValueMap<>();
+		MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
 		map.add("client_id", clientId);
 		map.add("client_assertion_type", clientAssertionType);
 		map.add("audience", retrieveTokenAudience);
@@ -80,42 +93,44 @@ public class AuthServiceImpl implements AuthService {
 
 		HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
-		ResponseEntity<ClientToken> response = restTemplate.exchange(baseUrl,HttpMethod.POST, request, ClientToken.class);
-		
+		ResponseEntity<ClientToken> response = restTemplate.exchange(baseUrl, HttpMethod.POST, request,
+				ClientToken.class);
+
 		return response.getBody();
 	}
 
-	
 	@Override
-	public TokenResponse generateUserToken(String code,String redirectUri) throws IOException {
-        // Create a RestTemplate to describe the request
-        RestTemplate restTemplate = new RestTemplate();
+	public TokenResponse generateUserToken(String code, String state) throws IOException {
+		// Create a RestTemplate to describe the request
+		log.info("TOKEN URI>>>>>>>>>>>>>>>>>>>>>>>> {}", tokenUri);
+		// Specify the http headers that we want to attach to the request
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+		var lastAuthorizationRequestOp = stitchAuthorizationRequestDao.findByStitchState(state);
+		if (!lastAuthorizationRequestOp.isPresent()) {
+			throw new IllegalStateException("Authorization Code not found");
+		}
 
-        // Specify the http headers that we want to attach to the request
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+		// Create a map of the key/value pairs that we want to supply in the body of the
+		// request
+		MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+		map.add("grant_type", tokenGrantType);
+		map.add("client_id", clientId);
+		map.add("code", code);
+		map.add("redirect_uri", redirectUri);
+		map.add("code_verifier", lastAuthorizationRequestOp.get().getCodeVerifier());
+		map.add("client_assertion_type", clientAssertionType);
+		map.add("client_assertion", generatePrivateKeyJwt());
 
-        // Create a map of the key/value pairs that we want to supply in the body of the request
-        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
-        map.add("grant_type","authorization_code");
-        map.add("client_id",clientId);
-        map.add("code",code);
-        map.add("redirect_uri",redirectUri);
-        map.add("code_verifier","process");
-        map.add("client_assertion_type",clientAssertionType);
-        map.add("client_assertion",generatePrivateKeyJwt());
+		// Create an HttpEntity object, wrapping the body and headers of the request
+		HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
 
-        // Create an HttpEntity object, wrapping the body and headers of the request
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
+		// Execute the request, as a POSt, and expecting a TokenResponse object in
+		// return
+		ResponseEntity<TokenResponse> response = restTemplate.exchange(tokenUri, HttpMethod.POST, entity,
+				TokenResponse.class);
 
-        // Execute the request, as a POSt, and expecting a TokenResponse object in return
-        ResponseEntity<TokenResponse> response =
-                restTemplate.exchange("https://oauth2.url/oauth/token",
-                        HttpMethod.POST,
-                        entity,
-                        TokenResponse.class);
-
-        return response.getBody();
-    }
+		return response.getBody();
+	}
 
 }

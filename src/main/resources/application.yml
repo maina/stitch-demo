@@ -5,12 +5,7 @@ stitch:
   audience: https://secure.stitch.money/connect/token
   scope: client_paymentrequest
   base-url: https://secure.stitch.money/connect/token
-  user-token:
-   auth-base-url: https://secure.stitch.money/connect/token
-   scope: openid offline_access accounts transactions balances accountholders
-   response_type: code
-   redirect_uri: https://local.stitchmoney.com/ide/add-user
-   code_challenge_method: S256
+  token-grant-type: authorization_code
    
 server:
   port: 9090
@@ -23,7 +18,18 @@ logging:
       springframework:
         security: DEBUG    	
 spring:
-  security:
+ h2:
+  console:
+    enabled: true
+    path: /h2-console
+ datasource:
+    url: jdbc:h2:mem:stitch_db
+    username: sa
+    password: password
+    driverClassName: org.h2.Driver
+ jpa:
+   database-platform: org.hibernate.dialect.H2Dialect
+ security:
     oauth2:
       client:
         registration:
@@ -32,7 +38,7 @@ spring:
             client-authentication-method: none
             authorization-grant-type: authorization_code
             redirect-uri: "https://8eb7-41-80-112-46.in.ngrok.io/user-tokens"
-            scope: openid, accounts, balances, offline_access
+            scope: openid,offline_access,accounts,transactions,balances,accountholders
         provider:
           stitch:
             authorization-uri: https://secure.stitch.money/connect/authorize

@@ -11,6 +11,6 @@ public interface AuthService {
 	
 	ClientToken retrieveClientToken() throws IOException;
 	
-	TokenResponse generateUserToken(String code,String redirectUri) throws IOException;
+	TokenResponse generateUserToken(String code,String state) throws IOException;
 
 }

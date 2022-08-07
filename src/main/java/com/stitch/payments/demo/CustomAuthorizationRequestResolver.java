@@ -1,5 +1,17 @@
 package com.stitch.payments.demo;
 
+import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.servlet.http.HttpServletRequest;
+
 import org.springframework.security.crypto.keygen.Base64StringKeyGenerator;
 import org.springframework.security.crypto.keygen.StringKeyGenerator;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -7,64 +19,163 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2Authorization
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
+import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import com.stitch.payments.demo.model.StitchAuthorizationRequest;
+import com.stitch.payments.demo.repository.StitchAuthorizationRequestDao;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Custom authorization request resolver
+ *
+ * This class makes sure the authorization request is built correctly.
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
+    private final ClientRegistrationRepository clientRegistrationRepository;
+    private final StitchAuthorizationRequestDao stitchAuthorizationRequestDao;
 
-	private OAuth2AuthorizationRequestResolver defaultResolver;
-	private final StringKeyGenerator secureKeyGenerator = new Base64StringKeyGenerator(
-			Base64.getUrlEncoder().withoutPadding(), 96);
+    private final StringKeyGenerator secureKeyGenerator =
+            new Base64StringKeyGenerator(Base64.getUrlEncoder().withoutPadding(), 96);
 
-	public CustomAuthorizationRequestResolver(ClientRegistrationRepository repo, String authorizationRequestBaseUri) {
-		defaultResolver = new DefaultOAuth2AuthorizationRequestResolver(repo, authorizationRequestBaseUri);
-	}
+    /**
+     * Customize the OAuth2 - OIDC authorization request.
+     * 1) Fetch the configured authorizationUri, clientId, clientSecret, ... for the identity provider and
+     *    bundle in a {@link OAuth2AuthorizationRequest}
+     * 2) Customize the default request with our own additional parameters
+     *
+     * @param servletRequest the request to our server (where we fetch the clientRegistrationId from - which is the
+     *                       identity provider name that we use for step 1)
+     * @return customized authorization request
+     */
+    @Override
+    public OAuth2AuthorizationRequest resolve(HttpServletRequest servletRequest) {
+        OAuth2AuthorizationRequest req = getDefaultResolver().resolve(servletRequest);
+        return customizeAuthorizationRequest(req);
+    }
 
-	@Override
-	public OAuth2AuthorizationRequest resolve(HttpServletRequest servletRequest) {
-		OAuth2AuthorizationRequest req = defaultResolver.resolve(servletRequest);
-		return customizeAuthorizationRequest(req);
-	}
+    /**
+     * Customize the OAuth2 - OIDC authorization request.
+     * 1) Fetch the configured authorizationUri, clientId, clientSecret, ... for the identity provider and
+     *    bundle in a {@link OAuth2AuthorizationRequest}
+     * 2) Customize the default request with our own additional parameters
+     *
+     * @param servletRequest the request to our server
+     * @param clientRegistrationId identity provider name that we use for step 1
+     * @return customized authorization request
+     */
+    @Override
+    public OAuth2AuthorizationRequest resolve(HttpServletRequest servletRequest, String clientRegistrationId) {
+        OAuth2AuthorizationRequest req = getDefaultResolver().resolve(servletRequest, clientRegistrationId);
+        return customizeAuthorizationRequest(req);
+    }
 
-	@Override
-	public OAuth2AuthorizationRequest resolve(HttpServletRequest servletRequest, String clientRegistrationId) {
-		OAuth2AuthorizationRequest req = defaultResolver.resolve(servletRequest, clientRegistrationId);
-		return customizeAuthorizationRequest(req);
-	}
+    private DefaultOAuth2AuthorizationRequestResolver getDefaultResolver() {
+        return new DefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepository, DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
+    }
 
-	private OAuth2AuthorizationRequest customizeAuthorizationRequest(OAuth2AuthorizationRequest req) {
-		if (req == null) {
-			return null;
-		}
+    /**
+     * Customize the authorization request
+     *
+     * Customization:
+     * 2) Generate code challenge and verifier
+     *
+     * Copy the rest of the variables to build a customized version of the request
+     *
+     * @param req the request that needs to be customized
+     * @return customized authorization request
+     */
+    private OAuth2AuthorizationRequest customizeAuthorizationRequest(OAuth2AuthorizationRequest req) {
+        if (req == null) { return null; }
 
-		Map<String, Object> attributes = new HashMap<>(req.getAttributes());
-		Map<String, Object> additionalParameters = new HashMap<>(req.getAdditionalParameters());
-		addPkceParameters(attributes, additionalParameters);
-		return OAuth2AuthorizationRequest.from(req).attributes(attributes).additionalParameters(additionalParameters)
-				.build();
-	}
+        // 1)
+        Map<String, Object> attributes = removeNonce(req.getAttributes());
+        Map<String, Object> additionalParameters = removeNonce(req.getAdditionalParameters());
 
-	private void addPkceParameters(Map<String, Object> attributes, Map<String, Object> additionalParameters) {
-		String codeVerifier = this.secureKeyGenerator.generateKey();
-		attributes.put(PkceParameterNames.CODE_VERIFIER, codeVerifier);
-		try {
-			String codeChallenge = createHash(codeVerifier);
-			additionalParameters.put(PkceParameterNames.CODE_CHALLENGE, codeChallenge);
-			additionalParameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256");
-		} catch (NoSuchAlgorithmException e) {
-			additionalParameters.put(PkceParameterNames.CODE_CHALLENGE, codeVerifier);
-		}
-	}
+        // 2)
+        final String CODE_VERIFIER = generateCodeVerifier();
+        final String CODE_CHALLENGE = generateCodeChallenge(CODE_VERIFIER);
+        final String CODE_VERIFIER_NAME = "code_verifier";
+        final String CODE_CHALLENGE_METHOD = "S256";
+        
+        log.info("CODE_VERIFIER_NAME {}",CODE_VERIFIER);
+        log.info("CODE_CHALLENGE {}",CODE_CHALLENGE);
 
-	private static String createHash(String value) throws NoSuchAlgorithmException {
-		MessageDigest md = MessageDigest.getInstance("SHA-256");
-		byte[] digest = md.digest(value.getBytes(StandardCharsets.US_ASCII));
-		return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
-	}
+        attributes.put(CODE_VERIFIER_NAME, CODE_VERIFIER);
+        additionalParameters.put(PkceParameterNames.CODE_CHALLENGE, CODE_CHALLENGE);
+        additionalParameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, CODE_CHALLENGE_METHOD);
+
+        final String AUTH_REQUEST_URL = buildRequestUrl(req, CODE_CHALLENGE, CODE_CHALLENGE_METHOD);
+        
+        saveStitchAuthorizationRequest(CODE_CHALLENGE, CODE_VERIFIER, req.getState());
+        
+
+        return OAuth2AuthorizationRequest
+                .authorizationCode()
+                .authorizationUri(req.getAuthorizationUri())
+                .clientId(req.getClientId())
+                .redirectUri(req.getRedirectUri())
+                .scopes(req.getScopes())
+                .state(req.getState())
+                .authorizationRequestUri(AUTH_REQUEST_URL)
+                .attributes(attributes)
+                .additionalParameters(additionalParameters)
+                .build();
+    }
+
+    private String buildRequestUrl(OAuth2AuthorizationRequest req, final String CODE_CHALLENGE, final String CODE_CHALLENGE_METHOD) {
+        UriComponents uriComponents = UriComponentsBuilder.fromUriString(req.getAuthorizationRequestUri()).build();
+        MultiValueMap<String, String> arg = new LinkedMultiValueMap<>(uriComponents.getQueryParams());
+//        arg.remove("nonce");
+
+        return UriComponentsBuilder
+                .fromUriString(req.getAuthorizationUri())
+                .queryParams(arg)
+                .queryParam(PkceParameterNames.CODE_CHALLENGE, CODE_CHALLENGE)
+                .queryParam(PkceParameterNames.CODE_CHALLENGE_METHOD, CODE_CHALLENGE_METHOD)
+                .build()
+                .toUriString();
+    }
+
+   
+
+    private String generateCodeChallenge(final String CODE_VERIFIER) {
+        try {
+            return createHash(CODE_VERIFIER);
+        } catch (NoSuchAlgorithmException ignored) {
+            throw new RuntimeException("Cannot create code challenge");
+        }
+    }
+
+    private String generateCodeVerifier() {
+        return this.secureKeyGenerator.generateKey();
+    }
+
+    private static String createHash(final String CODE_VERIFIER) throws NoSuchAlgorithmException {
+        final String ALGORITHM = "SHA-256";
+        MessageDigest md = MessageDigest.getInstance(ALGORITHM);
+        byte[] digest = md.digest(CODE_VERIFIER.getBytes(StandardCharsets.US_ASCII));
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+    }
+    private Map<String, Object> removeNonce(Map<String, Object> map) {
+        Map<String, Object> mapWithoutNonce = new HashMap<>(map);
+        return mapWithoutNonce;
+    }
+    
+    private void saveStitchAuthorizationRequest(String codeChallenge,String codeVerifier,String state) {
+    	var authRequest=new StitchAuthorizationRequest();
+    	authRequest.setCodeChallenge(codeChallenge);
+    	authRequest.setCodeVerifier(codeVerifier);
+    	authRequest.setStitchState(state);
+    	authRequest.setUserId(UUID.randomUUID());
+    	stitchAuthorizationRequestDao.save(authRequest);
+    }
 }
