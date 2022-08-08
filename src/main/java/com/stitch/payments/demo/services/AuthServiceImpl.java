@@ -20,7 +20,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.nimbusds.oauth2.sdk.TokenResponse;
+import com.stitch.payments.demo.dto.AccessToken;
 import com.stitch.payments.demo.dto.ClientToken;
 import com.stitch.payments.demo.repository.StitchAuthorizationRequestDao;
 
@@ -100,7 +100,7 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
-	public TokenResponse generateUserToken(String code, String state) throws IOException {
+	public AccessToken generateUserToken(String code, String state) throws IOException {
 		// Create a RestTemplate to describe the request
 		log.info("TOKEN URI>>>>>>>>>>>>>>>>>>>>>>>> {}", tokenUri);
 		// Specify the http headers that we want to attach to the request
@@ -127,8 +127,8 @@ public class AuthServiceImpl implements AuthService {
 
 		// Execute the request, as a POSt, and expecting a TokenResponse object in
 		// return
-		ResponseEntity<TokenResponse> response = restTemplate.exchange(tokenUri, HttpMethod.POST, entity,
-				TokenResponse.class);
+		ResponseEntity<AccessToken> response = restTemplate.exchange(tokenUri, HttpMethod.POST, entity,
+				AccessToken.class);
 
 		return response.getBody();
 	}

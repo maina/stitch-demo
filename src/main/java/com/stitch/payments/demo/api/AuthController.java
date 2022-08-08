@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nimbusds.oauth2.sdk.TokenResponse;
+import com.stitch.payments.demo.dto.AccessToken;
 import com.stitch.payments.demo.dto.ClientToken;
 import com.stitch.payments.demo.services.AuthService;
 
@@ -22,13 +22,12 @@ public class AuthController {
 
 	@PostMapping("/client-tokens")
 	public ClientToken getClientToken() throws IOException {
-		//var token=tokenManager.getAccessToken();
-		//log.info("Token {}",token);
+		
 		return authService.retrieveClientToken();
 	}
 	
 	@GetMapping("/user-tokens")
-	public TokenResponse getUserToken(@RequestParam("code") String code,@RequestParam("state") String state) throws IOException {
+	public AccessToken getUserToken(@RequestParam("code") String code,@RequestParam("state") String state) throws IOException {
 		log.info("Getting token with code>> {} and state {} ",code, state);
 		return authService.generateUserToken(code, state);
 	}
