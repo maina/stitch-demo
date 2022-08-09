@@ -130,7 +130,6 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
 			final String CODE_CHALLENGE_METHOD) {
 		UriComponents uriComponents = UriComponentsBuilder.fromUriString(req.getAuthorizationRequestUri()).build();
 		MultiValueMap<String, String> arg = new LinkedMultiValueMap<>(uriComponents.getQueryParams());
-//        arg.remove("nonce");
 		arg.remove(PkceParameterNames.CODE_CHALLENGE);
 		arg.remove(PkceParameterNames.CODE_CHALLENGE_METHOD);
 

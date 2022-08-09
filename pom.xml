@@ -17,7 +17,28 @@
 	<properties>
 		<java.version>18</java.version>
 	</properties>
+	<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.netflix.graphql.dgs</groupId>
+            <artifactId>graphql-dgs-platform-dependencies</artifactId>
+            <!-- The DGS BOM/platform dependency. This is the only place you set version of DGS -->
+            <version>4.9.16</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
 	<dependencies>
+	<!-- DGS dependencies. We don't have to specify a version here! -->
+    <dependency>
+        <groupId>com.netflix.graphql.dgs</groupId>
+        <artifactId>graphql-dgs-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.netflix.graphql.dgs</groupId>
+        <artifactId>graphql-dgs-subscriptions-websockets-autoconfigure</artifactId>
+    </dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
@@ -89,9 +110,9 @@
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
 		</dependency>
-		
+	
 	</dependencies>
-
+	
 	<build>
 		<plugins>
 			<plugin>

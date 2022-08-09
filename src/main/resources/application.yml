@@ -6,6 +6,7 @@ stitch:
   scope: client_paymentrequest
   base-url: https://secure.stitch.money/connect/token
   token-grant-type: authorization_code
+  graph-ql: https://api.stitch.money/graphql
    
 server:
   port: 9090

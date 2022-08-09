@@ -22,7 +22,9 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.stitch.payments.demo.dto.AccessToken;
 import com.stitch.payments.demo.dto.ClientToken;
+import com.stitch.payments.demo.model.UserToken;
 import com.stitch.payments.demo.repository.StitchAuthorizationRequestDao;
+import com.stitch.payments.demo.repository.UserTokenDao;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
 
 	private final RestTemplate restTemplate;
 	private final StitchAuthorizationRequestDao stitchAuthorizationRequestDao;
+	private final UserTokenDao userTokenDao;
 
 	@Override
 	public String generatePrivateKeyJwt() throws IOException {
@@ -129,8 +132,13 @@ public class AuthServiceImpl implements AuthService {
 		// return
 		ResponseEntity<AccessToken> response = restTemplate.exchange(tokenUri, HttpMethod.POST, entity,
 				AccessToken.class);
-
-		return response.getBody();
+		AccessToken accessToken = response.getBody();
+		var userToken = new UserToken();
+		userToken.setAccessToken(accessToken.getAccessToken());
+		userToken.setRefreshToken(accessToken.getRefreshToken());
+		
+		userTokenDao.save(userToken);
+		return accessToken;
 	}
 
 }

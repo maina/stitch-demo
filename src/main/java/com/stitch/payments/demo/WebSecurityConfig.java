@@ -25,9 +25,9 @@ public class WebSecurityConfig {
 
 
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	 SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http.cors().and().csrf().disable().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-				.and().authorizeRequests().antMatchers("/user-tokens","/h2-console/**").permitAll().anyRequest()
+				.and().authorizeRequests().antMatchers("/user-tokens","/user-accounts","/account-**","/h2-console/**").permitAll().anyRequest()
 				.authenticated();
 		http.headers().frameOptions().disable();
 //		http.oauth2Client();

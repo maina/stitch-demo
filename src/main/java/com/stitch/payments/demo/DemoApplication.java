@@ -12,11 +12,14 @@ public class DemoApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(DemoApplication.class, args);
 	}
-	@Bean
-	public RestTemplate restTemplate() {
-	    var restTemplate= new RestTemplate();
-	    restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory());
 
-	    return restTemplate;
-	}
+    @Bean
+    RestTemplate restTemplate() {
+        var restTemplate = new RestTemplate();
+        restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory());
+
+        return restTemplate;
+    }
+   
+
 }
