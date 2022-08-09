@@ -22,6 +22,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.stitch.payments.demo.dto.AccessToken;
 import com.stitch.payments.demo.dto.ClientToken;
+import com.stitch.payments.demo.dto.RefreshTokenRequest;
 import com.stitch.payments.demo.model.UserToken;
 import com.stitch.payments.demo.repository.StitchAuthorizationRequestDao;
 import com.stitch.payments.demo.repository.UserTokenDao;
@@ -134,6 +135,43 @@ public class AuthServiceImpl implements AuthService {
 				AccessToken.class);
 		AccessToken accessToken = response.getBody();
 		var userToken = new UserToken();
+		userToken.setAccessToken(accessToken.getAccessToken());
+		userToken.setRefreshToken(accessToken.getRefreshToken());
+		
+		userTokenDao.save(userToken);
+		return accessToken;
+	}
+	@Override
+	public AccessToken refreshUserToken() throws IOException {
+		// Create a RestTemplate to describe the request
+		log.info("TOKEN URI>>>>>>>>>>>>>>>>>>>>>>>> {}", tokenUri);
+		// Specify the http headers that we want to attach to the request
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+		var lastToken = userTokenDao.findFirstByOrderByIdDesc();
+		if (!lastToken.isPresent()) {
+			throw new IllegalStateException("Authorization Code not found");
+		}
+		
+	
+		
+		
+		MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+		map.add("grant_type", "refresh_token");
+		map.add("client_id", clientId);
+		map.add("refresh_token", lastToken.get().getRefreshToken());
+		map.add("client_assertion_type", clientAssertionType);
+		map.add("client_assertion", generatePrivateKeyJwt());
+
+		// Create an HttpEntity object, wrapping the body and headers of the request
+		HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
+
+		// Execute the request, as a POSt, and expecting a TokenResponse object in
+		// return
+		ResponseEntity<AccessToken> response = restTemplate.exchange(tokenUri, HttpMethod.POST, entity,
+				AccessToken.class);
+		AccessToken accessToken = response.getBody();
+		var userToken = userTokenDao.findFirstByOrderByIdDesc().get();
 		userToken.setAccessToken(accessToken.getAccessToken());
 		userToken.setRefreshToken(accessToken.getRefreshToken());
 		

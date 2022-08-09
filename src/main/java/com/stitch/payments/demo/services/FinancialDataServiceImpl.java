@@ -124,7 +124,7 @@ public class FinancialDataServiceImpl implements FinancialDataService {
 	}
 
 	private GraphQLClient client() {
-		var userToken = userTokenDao.findFirstByOrderByIdDesc();
+		var userToken = userTokenDao.findFirstByOrderByIdDesc().get();
 		return GraphQLClient.createCustom(baseUrl, (url, headers, body) -> {
 			HttpHeaders httpHeaders = new HttpHeaders();
 			httpHeaders.add("Authorization", "Bearer " + userToken.getAccessToken());

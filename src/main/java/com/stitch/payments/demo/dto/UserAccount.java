@@ -14,6 +14,5 @@ public class UserAccount {
 
     private List<BankAccount> bankAccounts;
 
-   
   }
 }

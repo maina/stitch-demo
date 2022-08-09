@@ -25,6 +25,11 @@ public class AuthController {
 		
 		return authService.retrieveClientToken();
 	}
+	@GetMapping("/refresh-token")
+	public AccessToken refreshToken() throws IOException {
+		
+		return authService.refreshUserToken();
+	}
 	
 	@GetMapping("/user-tokens")
 	public AccessToken getUserToken(@RequestParam("code") String code,@RequestParam("state") String state) throws IOException {
