@@ -7,6 +7,7 @@ stitch:
   base-url: https://secure.stitch.money/connect/token
   token-grant-type: authorization_code
   graph-ql: https://api.stitch.money/graphql
+  initiate-payment-redirect-uri: https://8eb7-41-80-112-46.in.ngrok.io/user-payment-confirmations
    
 server:
   port: 9090

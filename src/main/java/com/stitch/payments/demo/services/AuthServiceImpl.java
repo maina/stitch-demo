@@ -22,8 +22,8 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.stitch.payments.demo.dto.AccessToken;
 import com.stitch.payments.demo.dto.ClientToken;
-import com.stitch.payments.demo.dto.RefreshTokenRequest;
 import com.stitch.payments.demo.model.UserToken;
+import com.stitch.payments.demo.repository.ClientTokenDao;
 import com.stitch.payments.demo.repository.StitchAuthorizationRequestDao;
 import com.stitch.payments.demo.repository.UserTokenDao;
 
@@ -60,7 +60,7 @@ public class AuthServiceImpl implements AuthService {
 	private final RestTemplate restTemplate;
 	private final StitchAuthorizationRequestDao stitchAuthorizationRequestDao;
 	private final UserTokenDao userTokenDao;
-
+private final ClientTokenDao clientTokenDao;
 	@Override
 	public String generatePrivateKeyJwt() throws IOException {
 		RSAPublicKey publicKey = (RSAPublicKey) PemUtils.readPublicKeyFromFile("certificate.public", "RSA");
@@ -99,8 +99,13 @@ public class AuthServiceImpl implements AuthService {
 
 		ResponseEntity<ClientToken> response = restTemplate.exchange(baseUrl, HttpMethod.POST, request,
 				ClientToken.class);
+		
+		var clientTokenResponse=response.getBody();
+		var clientToken= new com.stitch.payments.demo.model.ClientToken();
+		clientToken.setAccessToken(clientTokenResponse.getAccessToken());
+		clientTokenDao.save(clientToken);
 
-		return response.getBody();
+		return clientTokenResponse;
 	}
 
 	@Override
@@ -152,8 +157,6 @@ public class AuthServiceImpl implements AuthService {
 		if (!lastToken.isPresent()) {
 			throw new IllegalStateException("Authorization Code not found");
 		}
-		
-	
 		
 		
 		MultiValueMap<String, String> map = new LinkedMultiValueMap<>();

@@ -1,17 +1,16 @@
-type Book {
-    title: String!
-    author: Author
+input CreatePaymentRequest {
+	amount: String!
+	payerReference: String!
+	beneficiaryReference: String!
+	externalReference: String!
+	beneficiary: BankAccount
 }
 
-type Author {
-    name: String!
-    surname: String!
+input BankAccount {
+	name: String!
+	bankId: String!
+	accountNumber: String!
 }
-
-type Query {
-    allBooks: [Book]
-}
-
-schema {
-    query: Query
+type Mutation{
+  clientPaymentInitiationRequestCreate(paymentRequest: CreatePaymentRequest): String
 }
