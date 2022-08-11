@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -24,6 +25,11 @@ public class PaymentsServiceImpl extends BaseService implements PaymentsService 
 	ClientTokenDao clientTokenDao;
 	@Autowired
 	PaymentRequestDao paymentRequestDao;
+	
+	@Value("${stitch.webhook-instant-pay}")
+	private String instantPayWebhookUrl;
+	@Value("${stitch.webhook-secret}")
+	private String webhookSecret;
 
 	public PaymentsServiceImpl(RestTemplate restTemplate, UserTokenDao userTokenDao) {
 		super(restTemplate, userTokenDao);
@@ -79,6 +85,93 @@ public class PaymentsServiceImpl extends BaseService implements PaymentsService 
 
 		return response;
 
+	}
+
+	@Override
+	public Map<String, Object> paymentRequestStatus(String paymentRequestId) {
+		Map<String, Object> variables = new HashMap<>();
+		variables.put("paymentRequestId", paymentRequestId);
+
+		var query = "query GetPaymentRequestStatus($paymentRequestId: ID!) {\n"
+				+ "  node(id: $paymentRequestId) {\n"
+				+ "    ... on PaymentInitiationRequest {\n"
+				+ "      id\n"
+				+ "      url\n"
+				+ "      payerReference\n"
+				+ "      state {\n"
+				+ "        __typename\n"
+				+ "        ... on PaymentInitiationRequestCompleted {\n"
+				+ "          date\n"
+				+ "          amount\n"
+				+ "          payer {\n"
+				+ "            ... on PaymentInitiationBankAccountPayer {\n"
+				+ "              accountNumber\n"
+				+ "              bankId\n"
+				+ "            }\n"
+				+ "          }\n"
+				+ "          beneficiary {\n"
+				+ "            ... on BankBeneficiary {\n"
+				+ "              bankId\n"
+				+ "            }\n"
+				+ "          }\n"
+				+ "        }\n"
+				+ "        ... on PaymentInitiationRequestCancelled {\n"
+				+ "          date\n"
+				+ "          reason\n"
+				+ "        }\n"
+				+ "        ... on PaymentInitiationRequestPending {\n"
+				+ "          __typename\n"
+				+ "          paymentInitiationRequest {\n"
+				+ "            id\n"
+				+ "          }\n"
+				+ "        }\n"
+				+ "      }\n"
+				+ "    }\n"
+				+ "  }\n"
+				+ "}";
+
+		GraphQLResponse graphQLResponse = client(clientToken()).executeQuery(query, variables, "GetPaymentRequestStatus");
+
+		log.info("GetPaymentRequestStatus {}", graphQLResponse);
+		return graphQLResponse.getData();
+	}
+
+	@Override
+	public Map<String, Object> instantPaySignedWebhook() {
+		var query="subscription InstantPayUpdatesWithHmac($webhookUrl: URL!, $secret: String!) {\n"
+				+ "  client(webhook: { url: $webhookUrl, secret: { hmacSha256Key: $secret }}) {\n"
+				+ "    paymentInitiationRequests {\n"
+				+ "      # Like edges in collections, subscriptions event edges \n"
+				+ "      # have nodes containing the data. Addjacent to this is metadata\n"
+				+ "      node {\n"
+				+ "        id\n"
+				+ "        externalReference\n"
+				+ "        state {\n"
+				+ "          __typename\n"
+				+ "          ... on PaymentInitiationRequestCompleted {\n"
+				+ "            date\n"
+				+ "          }\n"
+				+ "          ... on PaymentInitiationRequestCancelled {\n"
+				+ "            __typename\n"
+				+ "            date\n"
+				+ "            reason\n"
+				+ "          }\n"
+				+ "        }\n"
+				+ "      }\n"
+				+ "      eventId\n"
+				+ "      subscriptionId\n"
+				+ "      time\n"
+				+ "    }\n"
+				+ "  }\n"
+				+ "}";
+		
+		Map<String, Object> variables = new HashMap<>();
+		variables.put("webhookUrl", instantPayWebhookUrl);
+		variables.put("secret", webhookSecret);
+		GraphQLResponse graphQLResponse = client(clientToken()).executeQuery(query, variables, "InstantPayUpdatesWithHmac");
+
+		log.info("InstantPayUpdatesWithHmac {}", graphQLResponse);
+		return graphQLResponse.getData();
 	}
 
 }

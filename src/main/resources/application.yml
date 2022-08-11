@@ -8,6 +8,8 @@ stitch:
   token-grant-type: authorization_code
   graph-ql: https://api.stitch.money/graphql
   initiate-payment-redirect-uri: https://8eb7-41-80-112-46.in.ngrok.io/user-payment-confirmations
+  webhook-instant-pay: https://8eb7-41-80-112-46.in.ngrok.io/instantpay-notifications
+  webhook-secret: 5b50d80c7dc7ae8bb1b1433cc0b99ecd2ac8397a555c6f75cb8a619ae35a0c35
    
 server:
   port: 9090
