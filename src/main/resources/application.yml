@@ -3,7 +3,7 @@ stitch:
   client-id: test-0bc5a12d-de6c-4b2f-b4c1-f0bab8246016
   client_assertion_type: urn:ietf:params:oauth:client-assertion-type:jwt-bearer
   audience: https://secure.stitch.money/connect/token
-  scope: client_paymentrequest
+  scope: client_paymentrequest client_refund
   base-url: https://secure.stitch.money/connect/token
   token-grant-type: authorization_code
   graph-ql: https://api.stitch.money/graphql

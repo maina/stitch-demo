@@ -86,12 +86,12 @@ private final ClientTokenDao clientTokenDao;
 	public ClientToken retrieveClientToken() throws IOException {
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
+		
 		MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
 		map.add("client_id", clientId);
 		map.add("client_assertion_type", clientAssertionType);
 		map.add("audience", retrieveTokenAudience);
-		map.add("scope", scope);
+		map.add("scope",scope);
 		map.add("grant_type", grantType);
 		map.add("client_assertion", generatePrivateKeyJwt());
 

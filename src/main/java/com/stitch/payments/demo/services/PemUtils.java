@@ -8,6 +8,8 @@ package com.stitch.payments.demo.services;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -26,6 +28,7 @@ import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+@Slf4j
 public class PemUtils {
 
 	private static byte[] parsePEMFile(File pemFile) throws IOException {
@@ -47,9 +50,9 @@ public class PemUtils {
 			EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
 			publicKey = kf.generatePublic(keySpec);
 		} catch (NoSuchAlgorithmException e) {
-			System.out.println("Could not reconstruct the public key, the given algorithm could not be found.");
+			log.info("Could not reconstruct the public key, the given algorithm could not be found.");
 		} catch (InvalidKeySpecException e) {
-			System.out.println("Could not reconstruct the public key");
+			log.info("Could not reconstruct the public key");
 		}
 
 		return publicKey;
@@ -62,9 +65,9 @@ public class PemUtils {
 			EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
 			privateKey = kf.generatePrivate(keySpec);
 		} catch (NoSuchAlgorithmException e) {
-			System.out.println("Could not reconstruct the private key, the given algorithm could not be found.");
+			log.info("Could not reconstruct the private key, the given algorithm could not be found.");
 		} catch (InvalidKeySpecException e) {
-			System.out.println("Could not reconstruct the private key");
+			log.info("Could not reconstruct the private key");
 		}
 
 		return privateKey;
@@ -81,23 +84,22 @@ public class PemUtils {
 		return PemUtils.getPrivateKey(bytes, algorithm);
 	}
 
-	
-
 	public static String hmacSha256(String data, String key) throws InvalidKeyException, NoSuchAlgorithmException {
 		final String ALGORITHM = "HmacSHA256";
-        Mac sha256HMAC = Mac.getInstance(ALGORITHM);
+		
+		Mac sha256HMAC = Mac.getInstance(ALGORITHM);
 
-        SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), ALGORITHM);
-        sha256HMAC.init(secretKey);
+		SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), ALGORITHM);
+		sha256HMAC.init(secretKey);
 
-        return byteArrayToHex(sha256HMAC.doFinal(data.getBytes(StandardCharsets.UTF_8)));
-    }
+		return byteArrayToHex(sha256HMAC.doFinal(data.getBytes(StandardCharsets.UTF_8)));
+	}
 
-    public static String byteArrayToHex(byte[] a) {
-        StringBuilder sb = new StringBuilder(a.length * 2);
-        for(byte b: a)
-            sb.append(String.format("%02x", b));
-        return sb.toString();
-    }
+	public static String byteArrayToHex(byte[] a) {
+		StringBuilder sb = new StringBuilder(a.length * 2);
+		for (byte b : a)
+			sb.append(String.format("%02x", b));
+		return sb.toString();
+	}
 
 }

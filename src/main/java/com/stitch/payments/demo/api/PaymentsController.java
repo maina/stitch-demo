@@ -89,6 +89,8 @@ public class PaymentsController {
 		log.info("{}", lineSeparator);
 		log.info("{}", lineSeparator);
 
+		//sample x-stitch-signature value
+		//t=1660208022,hmac_sha256=f86b879619af00d2aed11e656325412755a660adf7517b8c363ca7f7e33998f6
 		String receivedSignatureMap = (String) signature.get("x-stitch-signature");
 		var receivedSignatureMapArray = receivedSignatureMap.split(",");
 		String receivedSignatureTime = receivedSignatureMapArray[0].split("=")[1];
