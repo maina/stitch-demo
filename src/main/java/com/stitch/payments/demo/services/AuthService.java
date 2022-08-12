@@ -7,7 +7,6 @@ import com.stitch.payments.demo.dto.ClientToken;
 
 public interface AuthService {
 	
-	String generatePrivateKeyJwt () throws IOException;
 	
 	ClientToken retrieveClientToken() throws IOException;
 	

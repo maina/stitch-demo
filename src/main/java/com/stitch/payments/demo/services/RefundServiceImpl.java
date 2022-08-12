@@ -69,12 +69,16 @@ public class RefundServiceImpl extends BaseService implements RefundService {
 
 	@Override
 	public Map<String, Object> refundSignedWebhook() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 	
 	private String clientToken() {
 		return clientTokenDao.findFirstByOrderByIdDesc().get().getAccessToken();
+	}
+
+	@Override
+	public Map<String, Object> refundStatus() {
+		return null;
 	}
 
 }

@@ -1,11 +1,6 @@
 package com.stitch.payments.demo.services;
 
 import java.io.IOException;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
-import java.time.Instant;
-import java.util.Date;
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -18,8 +13,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.algorithms.Algorithm;
 import com.stitch.payments.demo.dto.AccessToken;
 import com.stitch.payments.demo.dto.ClientToken;
 import com.stitch.payments.demo.model.UserToken;
@@ -60,48 +53,29 @@ public class AuthServiceImpl implements AuthService {
 	private final RestTemplate restTemplate;
 	private final StitchAuthorizationRequestDao stitchAuthorizationRequestDao;
 	private final UserTokenDao userTokenDao;
-private final ClientTokenDao clientTokenDao;
-	@Override
-	public String generatePrivateKeyJwt() throws IOException {
-		RSAPublicKey publicKey = (RSAPublicKey) PemUtils.readPublicKeyFromFile("certificate.public", "RSA");
-		RSAPrivateKey privateKey = (RSAPrivateKey) PemUtils.readPrivateKeyFromFile("certificate.private", "RSA");
-
-		Algorithm algorithmRS = Algorithm.RSA256(publicKey, privateKey);
-
-		Instant currentInstant = Instant.now();
-
-		String audience = "https://secure.stitch.money/connect/token";
-		String issuer = clientId;
-		String subject = clientId;
-		String jti = UUID.randomUUID().toString(); // Needs to be a unique value each time
-		Date issuedAt = Date.from(currentInstant);
-		Date notBefore = issuedAt;
-		Date expiresAt = Date.from(currentInstant.plusSeconds(60)); // Should be a small value after now
-
-		return JWT.create().withAudience(audience).withIssuer(issuer).withSubject(subject).withJWTId(jti)
-				.withIssuedAt(issuedAt).withNotBefore(notBefore).withExpiresAt(expiresAt).sign(algorithmRS);
-	}
+	private final ClientTokenDao clientTokenDao;
+	private final CryptoUtils cryptoUtils;
 
 	@Override
 	public ClientToken retrieveClientToken() throws IOException {
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-		
+
 		MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
 		map.add("client_id", clientId);
 		map.add("client_assertion_type", clientAssertionType);
 		map.add("audience", retrieveTokenAudience);
-		map.add("scope",scope);
+		map.add("scope", scope);
 		map.add("grant_type", grantType);
-		map.add("client_assertion", generatePrivateKeyJwt());
+		map.add("client_assertion", cryptoUtils.generatePrivateKeyJwt());
 
 		HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
 		ResponseEntity<ClientToken> response = restTemplate.exchange(baseUrl, HttpMethod.POST, request,
 				ClientToken.class);
-		
-		var clientTokenResponse=response.getBody();
-		var clientToken= new com.stitch.payments.demo.model.ClientToken();
+
+		var clientTokenResponse = response.getBody();
+		var clientToken = new com.stitch.payments.demo.model.ClientToken();
 		clientToken.setAccessToken(clientTokenResponse.getAccessToken());
 		clientTokenDao.save(clientToken);
 
@@ -129,7 +103,7 @@ private final ClientTokenDao clientTokenDao;
 		map.add("redirect_uri", redirectUri);
 		map.add("code_verifier", lastAuthorizationRequestOp.get().getCodeVerifier());
 		map.add("client_assertion_type", clientAssertionType);
-		map.add("client_assertion", generatePrivateKeyJwt());
+		map.add("client_assertion", cryptoUtils.generatePrivateKeyJwt());
 
 		// Create an HttpEntity object, wrapping the body and headers of the request
 		HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
@@ -142,10 +116,11 @@ private final ClientTokenDao clientTokenDao;
 		var userToken = new UserToken();
 		userToken.setAccessToken(accessToken.getAccessToken());
 		userToken.setRefreshToken(accessToken.getRefreshToken());
-		
+
 		userTokenDao.save(userToken);
 		return accessToken;
 	}
+
 	@Override
 	public AccessToken refreshUserToken() throws IOException {
 		// Create a RestTemplate to describe the request
@@ -157,14 +132,13 @@ private final ClientTokenDao clientTokenDao;
 		if (!lastToken.isPresent()) {
 			throw new IllegalStateException("Authorization Code not found");
 		}
-		
-		
+
 		MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
 		map.add("grant_type", "refresh_token");
 		map.add("client_id", clientId);
 		map.add("refresh_token", lastToken.get().getRefreshToken());
 		map.add("client_assertion_type", clientAssertionType);
-		map.add("client_assertion", generatePrivateKeyJwt());
+		map.add("client_assertion", cryptoUtils.generatePrivateKeyJwt());
 
 		// Create an HttpEntity object, wrapping the body and headers of the request
 		HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
@@ -177,7 +151,7 @@ private final ClientTokenDao clientTokenDao;
 		var userToken = userTokenDao.findFirstByOrderByIdDesc().get();
 		userToken.setAccessToken(accessToken.getAccessToken());
 		userToken.setRefreshToken(accessToken.getRefreshToken());
-		
+
 		userTokenDao.save(userToken);
 		return accessToken;
 	}

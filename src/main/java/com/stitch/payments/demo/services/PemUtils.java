@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -24,12 +25,16 @@ import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.SecureRandom;
 
 @Slf4j
 public class PemUtils {
+	private static final SecureRandom secureRandom = new SecureRandom();
+	public static final String CODE_CHALLENGE_METHOD = "S256";
 
 	private static byte[] parsePEMFile(File pemFile) throws IOException {
 		if (!pemFile.isFile() || !pemFile.exists()) {
@@ -101,5 +106,43 @@ public class PemUtils {
 			sb.append(String.format("%02x", b));
 		return sb.toString();
 	}
+	
+	
+	public static String generateCodeChallenge(final String CODE_VERIFIER) {
+		try {
+			return createHash(CODE_VERIFIER);
+		} catch (NoSuchAlgorithmException ignored) {
+			throw new RuntimeException("Cannot create code challenge");
+		}
+	}
+
+	public static String generateCodeVerifier() {
+		byte[] codeVerifier = new byte[32];
+		secureRandom.nextBytes(codeVerifier);
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(codeVerifier);
+	}
+	
+	private static String createHash(final String CODE_VERIFIER) throws NoSuchAlgorithmException {
+		try {
+			byte[] bytes = CODE_VERIFIER.getBytes(StandardCharsets.US_ASCII);
+			MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+			messageDigest.update(bytes, 0, bytes.length);
+			byte[] digest = messageDigest.digest();
+			return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+		} catch (Exception e) {
+			return null;
+		}
+	}
+	
+	public static String nonceGenerator(){
+	   
+	    StringBuilder stringBuilder = new StringBuilder();
+	    for (int i = 0; i < 15; i++) {
+	        stringBuilder.append(secureRandom.nextInt(10));
+	    }
+	    String randomNumber = stringBuilder.toString();
+	    return randomNumber;
+	}
+
 
 }

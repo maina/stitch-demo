@@ -2,11 +2,6 @@ package com.stitch.payments.demo;
 
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +21,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.stitch.payments.demo.model.StitchAuthorizationRequest;
 import com.stitch.payments.demo.repository.StitchAuthorizationRequestDao;
+import com.stitch.payments.demo.services.PemUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +38,6 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
 	private final ClientRegistrationRepository clientRegistrationRepository;
 	private final StitchAuthorizationRequestDao stitchAuthorizationRequestDao;
 
-	private final SecureRandom secureRandom = new SecureRandom();
 
 
 	/**
@@ -103,20 +98,19 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
 		Map<String, Object> additionalParameters = removeNonce(req.getAdditionalParameters());
 
 		// 2)
-		final String CODE_VERIFIER = generateCodeVerifier();
+		final String CODE_VERIFIER = PemUtils.generateCodeVerifier();
 		log.info("CODE_VERIFIER_NAME {}", CODE_VERIFIER);
 
-		final String CODE_CHALLENGE = generateCodeChallenge(CODE_VERIFIER);
+		final String CODE_CHALLENGE = PemUtils.generateCodeChallenge(CODE_VERIFIER);
 		final String CODE_VERIFIER_NAME = "code_verifier";
-		final String CODE_CHALLENGE_METHOD = "S256";
 
 		log.info("CODE_CHALLENGE {}", CODE_CHALLENGE);
 
 		attributes.put(CODE_VERIFIER_NAME, CODE_VERIFIER);
 		additionalParameters.put(PkceParameterNames.CODE_CHALLENGE, CODE_CHALLENGE);
-		additionalParameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, CODE_CHALLENGE_METHOD);
+		additionalParameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, PemUtils.CODE_CHALLENGE_METHOD);
 
-		final String AUTH_REQUEST_URL = buildRequestUrl(req, CODE_CHALLENGE, CODE_CHALLENGE_METHOD);
+		final String AUTH_REQUEST_URL = buildRequestUrl(req, CODE_CHALLENGE, PemUtils.CODE_CHALLENGE_METHOD);
 
 		saveStitchAuthorizationRequest(CODE_CHALLENGE, CODE_VERIFIER, req.getState());
 
@@ -138,32 +132,9 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
 				.queryParam(PkceParameterNames.CODE_CHALLENGE_METHOD, CODE_CHALLENGE_METHOD).build().toUriString();
 	}
 
-	private String generateCodeChallenge(final String CODE_VERIFIER) {
-		try {
-			return createHash(CODE_VERIFIER);
-		} catch (NoSuchAlgorithmException ignored) {
-			throw new RuntimeException("Cannot create code challenge");
-		}
-	}
 
-	private String generateCodeVerifier() {
-		byte[] codeVerifier = new byte[32];
-		secureRandom.nextBytes(codeVerifier);
-		return Base64.getUrlEncoder().withoutPadding().encodeToString(codeVerifier);
-	}
 
-	private static String createHash(final String CODE_VERIFIER) throws NoSuchAlgorithmException {
-		try {
-			byte[] bytes = CODE_VERIFIER.getBytes(StandardCharsets.US_ASCII);
-			MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-			messageDigest.update(bytes, 0, bytes.length);
-			byte[] digest = messageDigest.digest();
-			return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
-		} catch (Exception e) {
-			return null;
-		}
-	}
-
+	
 	private Map<String, Object> removeNonce(Map<String, Object> map) {
 		Map<String, Object> mapWithoutNonce = new HashMap<>(map);
 		return mapWithoutNonce;
