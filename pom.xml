@@ -80,6 +80,7 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+			
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
@@ -115,7 +116,13 @@
     <groupId>commons-codec</groupId>
     <artifactId>commons-codec</artifactId>
 </dependency>
-	
+	<!-- https://mvnrepository.com/artifact/org.json/json -->
+
+	 <dependency>
+        <groupId>com.github.openjson</groupId>
+        <artifactId>openjson</artifactId>
+        <version>1.0.12</version>
+    </dependency>
 	</dependencies>
 	
 	<build>

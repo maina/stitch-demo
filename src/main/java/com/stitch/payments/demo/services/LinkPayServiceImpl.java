@@ -1,8 +1,6 @@
 package com.stitch.payments.demo.services;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,11 +21,15 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.github.openjson.JSONArray;
+import com.github.openjson.JSONObject;
 import com.netflix.graphql.dgs.client.GraphQLResponse;
 import com.stitch.payments.demo.dto.AccessToken;
+import com.stitch.payments.demo.model.LinkPayInitiationRequest;
 import com.stitch.payments.demo.model.StitchAuthorizationRequest;
 import com.stitch.payments.demo.model.UserToken;
 import com.stitch.payments.demo.repository.ClientTokenDao;
+import com.stitch.payments.demo.repository.LinkPayInitiationRequestDao;
 import com.stitch.payments.demo.repository.StitchAuthorizationRequestDao;
 import com.stitch.payments.demo.repository.UserTokenDao;
 
@@ -61,6 +63,9 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 
 	@Value("${stitch.client_assertion_type}")
 	private String clientAssertionType;
+	
+	@Value("${stitch.linkpay-user-interactions}")
+	private String linkPayUserInteractionUrl;
 
 	@Autowired
 	private RestTemplate restTemplate;
@@ -68,6 +73,8 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 	private StitchAuthorizationRequestDao stitchAuthorizationRequestDao;
 	@Autowired
 	private CryptoUtils cryptoUtils;
+	@Autowired
+	LinkPayInitiationRequestDao linkPayInitiationRequestDao;
 
 	public LinkPayServiceImpl(RestTemplate restTemplate, UserTokenDao userTokenDao) {
 		super(restTemplate, userTokenDao);
@@ -76,7 +83,7 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 	private String clientToken() {
 		return clientTokenDao.findFirstByOrderByIdDesc().get().getAccessToken();
 	}
-	
+
 	private String getAccessToken() {
 		return userTokenDao.findFirstByOrderByIdDesc().get().getAccessToken();
 	}
@@ -93,26 +100,14 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 		variables.put("payerReference", UUID.randomUUID());
 		variables.put("payerPhoneNumber", "27821234567");
 
-		var query = "mutation CreateAccountLinkingRequest {\n"
-				+ "  clientPaymentAuthorizationRequestCreate(input: {\n"
-				+ "    beneficiary: {\n"
-				+ "      bankAccount: {\n"
-				+ "        name: \"Sample Account\", \n"
-				+ "        bankId: absa, \n"
-				+ "        accountNumber: \"1234567890\", \n"
-				+ "        accountType: current, \n"
-				+ "        beneficiaryType: private, \n"
-				+ "        reference: \"TestBeneficiary\"\n"
-				+ "      }\n"
-				+ "    }, payer: {        \n"
-				+ "      email: \"sampleuser@example.com\",       \n"
-				+ "      name: \"Sample User\", \n"
-				+ "      reference: \"TestPayer\",\n"
-				+ "      phoneNumber: \"27821234567\"\n"
-				+ "  }}) {\n"
-				+ "    authorizationRequestUrl\n"
-				+ "  }\n"
-				+ "}";
+		var query = "mutation CreateAccountLinkingRequest {\n" + "  clientPaymentAuthorizationRequestCreate(input: {\n"
+				+ "    beneficiary: {\n" + "      bankAccount: {\n" + "        name: \"Sample Account\", \n"
+				+ "        bankId: absa, \n" + "        accountNumber: \"1234567890\", \n"
+				+ "        accountType: current, \n" + "        beneficiaryType: private, \n"
+				+ "        reference: \"TestBeneficiary\"\n" + "      }\n" + "    }, payer: {        \n"
+				+ "      email: \"sampleuser@example.com\",       \n" + "      name: \"Sample User\", \n"
+				+ "      reference: \"TestPayer\",\n" + "      phoneNumber: \"27821234567\"\n" + "  }}) {\n"
+				+ "    authorizationRequestUrl\n" + "  }\n" + "}";
 
 		GraphQLResponse graphQLResponse = client(clientToken()).executeQuery(query, variables,
 				"CreateAccountLinkingRequest");
@@ -129,50 +124,70 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 
 	@Override
 	public Map<String, Object> linkedAccountInfo() {
-		var query="query GetLinkedAccountAndIdentityInfo {  \n"
-				+ "  user {\n"
-				+ "    paymentAuthorization {\n"
-				+ "      bankAccount {\n"
-				+ "        id\n"
-				+ "        name\n"
-				+ "        accountNumber\n"
-				+ "        accountType\n"
-				+ "        bankId\n"
-				+ "        accountHolder {\n"
-				+ "          __typename\n"
-				+ "          ... on Individual {\n"
-				+ "            fullName\n"
-				+ "            identifyingDocument {\n"
-				+ "              ... on IdentityDocument {\n"
-				+ "                __typename\n"
-				+ "                country\n"
-				+ "                number\n"
-				+ "              }\n"
-				+ "              ... on Passport {\n"
-				+ "                __typename\n"
-				+ "                country\n"
-				+ "                number\n"
-				+ "              }\n"
-				+ "            }\n"
-				+ "          }\n"
-				+ "        }\n"
-				+ "      }\n"
-				+ "    }\n"
-				+ "  }\n"
-				+ "}\n"
-				+ "";
+		var query = "query GetLinkedAccountAndIdentityInfo {  \n" + "  user {\n" + "    paymentAuthorization {\n"
+				+ "      bankAccount {\n" + "        id\n" + "        name\n" + "        accountNumber\n"
+				+ "        accountType\n" + "        bankId\n" + "        accountHolder {\n" + "          __typename\n"
+				+ "          ... on Individual {\n" + "            fullName\n" + "            identifyingDocument {\n"
+				+ "              ... on IdentityDocument {\n" + "                __typename\n"
+				+ "                country\n" + "                number\n" + "              }\n"
+				+ "              ... on Passport {\n" + "                __typename\n" + "                country\n"
+				+ "                number\n" + "              }\n" + "            }\n" + "          }\n" + "        }\n"
+				+ "      }\n" + "    }\n" + "  }\n" + "}\n" + "";
 		GraphQLResponse graphQLResponse = client(getAccessToken()).executeQuery(query, Collections.emptyMap(),
 				"GetLinkedAccountAndIdentityInfo");
-		
+
 		log.info("GetLinkedAccountAndIdentityInfo {}", graphQLResponse.getData());
 
-		return  graphQLResponse.getData();
+		return graphQLResponse.getData();
 	}
 
 	@Override
 	public Map<String, Object> initiatePayment() {
-		// TODO Auto-generated method stub
-		return null;
+		var query = "mutation UserInitiatePayment(\n" + "    $amount: MoneyInput!,\n"
+				+ "    $payerReference: String!,\n" + "    $externalReference: String) {  \n"
+				+ "  userInitiatePayment(input: {\n" + "      amount: $amount,\n"
+				+ "      payerReference: $payerReference,\n" + "      externalReference: $externalReference\n"
+				+ "    }) {\n" + "    paymentInitiation {\n" + "      amount\n" + "      date\n" + "      id\n"
+				+ "      status {\n" + "        __typename\n" + "      }\n" + "    }\n" + "  }\n" + "}";
+
+		Map<String, Object> variables = new HashMap<>();
+		Map<String, Object> moneyInput = new HashMap<>();
+		moneyInput.put("quantity", 1);
+		moneyInput.put("currency", "ZAR");
+		variables.put("amount", moneyInput);
+		variables.put("payerReference", "SambarSnacks");
+		variables.put("externalReference", UUID.randomUUID().toString());
+
+		GraphQLResponse graphQLResponse = client(getAccessToken()).executeQuery(query, variables,
+				"UserInitiatePayment");
+
+		log.info("UserInitiatePayment {}", graphQLResponse.getJson());
+		JSONObject jsonResponse = new JSONObject(graphQLResponse.getJson());
+
+		if (jsonResponse.has("errors")) {
+			JSONObject extensions = jsonResponse.getJSONArray("errors").getJSONObject(0).getJSONObject("extensions");
+			var code = extensions.getString("code");
+			if (code.equalsIgnoreCase("USER_INTERACTION_REQUIRED")) {
+				var userInteractionUrl = extensions.getString("userInteractionUrl");
+				userInteractionUrl=userInteractionUrl.concat("?redirect_uri="+linkPayUserInteractionUrl);
+				var map= new HashMap<String,Object>();
+				map.put("USER_INTERACTION_REQUIRED", userInteractionUrl);
+				return map;
+			}
+
+		}
+
+		var paymentInitiation = jsonResponse.getJSONObject("data").getJSONObject("userInitiatePayment")
+				.getJSONObject("paymentInitiation");
+		var refId = paymentInitiation.getString("id");
+		var statusType = paymentInitiation.getJSONObject("status").getString("__typename");
+
+		var linkPayInitiationRequest = new LinkPayInitiationRequest();
+		linkPayInitiationRequest.setReferenceId(refId);
+		linkPayInitiationRequest.setStatus(statusType);
+
+		linkPayInitiationRequestDao.save(linkPayInitiationRequest);
+		return graphQLResponse.getData();
 	}
 
 	@Override
@@ -189,8 +204,60 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 
 	@Override
 	public Map<String, Object> viewInitiatedPayments() {
-		// TODO Auto-generated method stub
-		return null;
+		var query="query RetrieveAllPaymentInitiations {\n"
+				+ "  client {\n"
+				+ "    paymentInitiations {\n"
+				+ "      edges {\n"
+				+ "        node {\n"
+				+ "          id\n"
+				+ "          amount\n"
+				+ "          beneficiaryReference\n"
+				+ "          payerReference\n"
+				+ "          externalReference\n"
+				+ "          date\n"
+				+ "          beneficiary {\n"
+				+ "            ... on BankBeneficiary {\n"
+				+ "              __typename\n"
+				+ "              bankAccountNumber\n"
+				+ "              bankId\n"
+				+ "              name\n"
+				+ "            }\n"
+				+ "          }\n"
+				+ "          status {\n"
+				+ "            ... on PaymentInitiationCompleted {\n"
+				+ "              __typename\n"
+				+ "              date\n"
+				+ "              payer {\n"
+				+ "                ... on PaymentInitiationBankAccountPayer {\n"
+				+ "                  __typename\n"
+				+ "                  accountName\n"
+				+ "                  accountNumber\n"
+				+ "                  accountType\n"
+				+ "                  bankId\n"
+				+ "                }\n"
+				+ "              }\n"
+				+ "            }\n"
+				+ "            ... on PaymentInitiationPending {\n"
+				+ "              id\n"
+				+ "              url\n"
+				+ "            }\n"
+				+ "            ... on PaymentInitiationFailed {\n"
+				+ "              __typename\n"
+				+ "              date\n"
+				+ "              reason\n"
+				+ "            }\n"
+				+ "          }\n"
+				+ "        }\n"
+				+ "      }\n"
+				+ "    }\n"
+				+ "  }\n"
+				+ "}\n"
+				+ "";
+		GraphQLResponse graphQLResponse = client(clientToken()).executeQuery(query, Collections.emptyMap(),
+				"RetrieveAllPaymentInitiations");
+
+		log.info("RetrieveAllPaymentInitiations {}", graphQLResponse.getJson());
+		return graphQLResponse.getData();
 	}
 
 	private String buildAuthorizationUri(String authorizationRequestUrl) {
@@ -226,7 +293,7 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 		// Specify the http headers that we want to attach to the request
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-		log.info("Generate token using state>>>>>>>>> ",state);
+		log.info("Generate token using state>>>>>>>>> ", state);
 		var lastAuthorizationRequestOp = stitchAuthorizationRequestDao.findByStitchState(state);
 		if (!lastAuthorizationRequestOp.isPresent()) {
 			throw new IllegalStateException("Code verifier not found");
