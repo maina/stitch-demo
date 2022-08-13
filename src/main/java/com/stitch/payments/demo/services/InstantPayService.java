@@ -4,7 +4,7 @@ import java.util.Map;
 
 import com.stitch.payments.demo.dto.InitiatePaymentRequestResponse;
 
-public interface PaymentsService {
+public interface InstantPayService {
 	
 	InitiatePaymentRequestResponse initiatePaymentRequest();
 	Map<String,Object> paymentRequestStatus(String paymentRequestId);

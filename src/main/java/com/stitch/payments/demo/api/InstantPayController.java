@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stitch.payments.demo.services.PaymentsService;
+import com.stitch.payments.demo.services.InstantPayService;
 import com.stitch.payments.demo.services.PemUtils;
 
 import lombok.RequiredArgsConstructor;
@@ -26,8 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentsController {
-	private final PaymentsService paymentsService;
+public class InstantPayController {
+	private final InstantPayService paymentsService;
 	@Value("${stitch.initiate-payment-redirect-uri}")
 	private String redirectUri;
 	@Value("${stitch.webhook-secret}")

@@ -20,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-public class PaymentsServiceImpl extends BaseService implements PaymentsService {
+public class InstantPayServiceImpl extends BaseService implements InstantPayService {
 	@Autowired
 	ClientTokenDao clientTokenDao;
 	@Autowired
@@ -31,7 +31,7 @@ public class PaymentsServiceImpl extends BaseService implements PaymentsService 
 	@Value("${stitch.webhook-secret}")
 	private String webhookSecret;
 
-	public PaymentsServiceImpl(RestTemplate restTemplate, UserTokenDao userTokenDao) {
+	public InstantPayServiceImpl(RestTemplate restTemplate, UserTokenDao userTokenDao) {
 		super(restTemplate, userTokenDao);
 
 	}

@@ -66,6 +66,12 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 	
 	@Value("${stitch.linkpay-user-interactions}")
 	private String linkPayUserInteractionUrl;
+	
+	@Value("${stitch.webhook-link-pay}")
+	private String linkPayWebhookUrl;
+	
+	@Value("${stitch.webhook-secret}")
+	private String webhookSecret;
 
 	@Autowired
 	private RestTemplate restTemplate;
@@ -198,8 +204,56 @@ public class LinkPayServiceImpl extends BaseService implements LinkPayService {
 
 	@Override
 	public Map<String, Object> webhookSubscription() {
-		// TODO Auto-generated method stub
-		return null;
+		
+			var query="subscription LinkPayUpdatesWithHmac($webhookUrl: URL!, $secret: String!, $headers: [InputHeader!]) {\n"
+					+ "  client(webhook: { url: $webhookUrl, secret: { hmacSha256Key: $secret }, headers: $headers}) {\n"
+					+ "     paymentInitiations {\n"
+					+ "      eventId\n"
+					+ "      subscriptionId\n"
+					+ "      time\n"
+					+ "      node {\n"
+					+ "        id\n"
+					+ "        externalReference\n"
+					+ "        beneficiaryReference\n"
+					+ "        date\n"
+					+ "        status {\n"
+					+ "          ... on PaymentInitiationCompleted {\n"
+					+ "            __typename\n"
+					+ "            date\n"
+					+ "            payer {\n"
+					+ "              ... on PaymentInitiationBankAccountPayer {\n"
+					+ "                __typename\n"
+					+ "                accountName\n"
+					+ "                accountType\n"
+					+ "                accountNumber\n"
+					+ "                bankId\n"
+					+ "              }\n"
+					+ "            }\n"
+					+ "          }\n"
+					+ "          ... on PaymentInitiationFailed {\n"
+					+ "            __typename\n"
+					+ "            date\n"
+					+ "            reason\n"
+					+ "          }\n"
+					+ "          ... on PaymentInitiationCancelled {\n"
+					+ "            __typename\n"
+					+ "            date\n"
+					+ "            reason\n"
+					+ "          }\n"
+					+ "        }\n"
+					+ "      }\n"
+					+ "    }\n"
+					+ "  }\n"
+					+ "}";
+			
+			Map<String, Object> variables = new HashMap<>();
+			variables.put("webhookUrl", linkPayWebhookUrl);
+			variables.put("secret", webhookSecret);
+			GraphQLResponse graphQLResponse = client(clientToken()).executeQuery(query, variables, "LinkPayUpdatesWithHmac");
+
+			log.info("LinkPayUpdatesWithHmac {}", graphQLResponse);
+			return graphQLResponse.getData();
+		
 	}
 
 	@Override
