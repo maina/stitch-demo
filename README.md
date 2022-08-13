@@ -16,3 +16,22 @@ Alternatively you can use the [Spring Boot Maven plugin](https://docs.spring.io/
 ```shell
 mvn spring-boot:run
 ```
+This sample covers the following features:
+- Generate a client token
+- Generate a user token using authorization flow
+- Fetch financial data
+- Use the refresh token to retrieve a new token
+- Use InstantPay to:
+  - Create a payment initiation request
+  - Handle payment request callback
+  - Subscribe for payments completion webhook notifications
+  - Receive *signed* webhooks on payment completion
+  - Retrieve payment request status
+- Use LinkPay to:
+  - Create payment authorization request
+  - Present user with authorization flow
+  - Retrieve user tokens
+  - Initiate payment
+  - Handle user-interaction for accounts that require MFA
+  - Subscribe to paymentinitiation signed webhook
+  - Receive and validate signed HMAC webhook notification
