@@ -76,8 +76,8 @@ public class RefundServiceImpl extends BaseService implements RefundService {
 
 	@Override
 	public Map<String, Object> refundSignedWebhook() {
-		var query="subscription RefundUpdates($webhookUrl: URL!, $headers: [InputHeader!])  {\n"
-				+ "  client(webhook: {url: $webhookUrl, headers: $headers}) {\n"
+		var query="subscription RefundUpdatesWithHmac($webhookUrl: URL!, $secret: String!, $headers: [InputHeader!])  {\n"
+				+ "  client(webhook: {url: $webhookUrl, secret: { hmacSha256Key: $secret }, headers: $headers}) {\n"
 				+ "    refunds {\n"
 				+ "      node {\n"
 				+ "        status {\n"
@@ -111,9 +111,9 @@ public class RefundServiceImpl extends BaseService implements RefundService {
 		Map<String, Object> variables = new HashMap<>();
 		variables.put("webhookUrl", linkPayWebhookUrl);
 		variables.put("secret", webhookSecret);
-		GraphQLResponse graphQLResponse = client(clientToken()).executeQuery(query, variables, "RefundUpdates");
+		GraphQLResponse graphQLResponse = client(clientToken()).executeQuery(query, variables, "RefundUpdatesWithHmac");
 
-		log.info("RefundUpdates {}", graphQLResponse);
+		log.info("RefundUpdatesWithHmac {}", graphQLResponse);
 		return graphQLResponse.getData();
 	}
 	
