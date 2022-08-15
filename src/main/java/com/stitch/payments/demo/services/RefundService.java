@@ -8,7 +8,7 @@ public interface RefundService {
 	
 	Map<String,Object> refundSignedWebhook();
 	
-	Map<String,Object> refundStatus();
+	Map<String,Object> refundStatus(String id);
 
 
 }
